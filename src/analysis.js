@@ -1,6 +1,8 @@
 /**
  * [TODO] Step 0: Import the dependencies, fs and papaparse
  */
+const fs = require('fs')
+const Papa = require('papaparse')
 
 /**
  * [TODO] Step 1: Parse the Data
@@ -9,7 +11,20 @@
  * @param {string} filename - path to the csv file to be parsed
  * @returns {Object} - The parsed csv file of app reviews from papaparse.
  */
-function parseData(filename) {}
+function parseData(filename) {
+    const csv = fs.readFileSync(filename, 'utf8');
+    const { data, errors, meta } = Papa.parse(csv, {
+        header: true,
+        skipEmptyLines: true,
+        dynamicTyping: true,
+    });
+    // console.log('File content:', data);
+    // console.log('File length:', data.length);
+    // console.log("data", data);
+    // console.log("data length", data.length);
+    return data;
+
+}
 
 /**
  * [TODO] Step 2: Clean the Data
@@ -26,7 +41,41 @@ function parseData(filename) {}
  * @param {Object} csv - a parsed csv file of app reviews
  * @returns {Object} - a cleaned csv file with proper data types and removed null values
  */
-function cleanData(csv) {}
+function cleanData(csv) {
+    function containsNull(record) {
+        for (const key in record) {
+            if (key !== 'user_gender' && (record[key] === null || record[key] === '')) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function cleanRecord(record) {
+        record.user = {
+            user_id: parseInt(record.user_id),
+            user_age: parseInt(record.user_age),
+            user_country: record.user_country,
+            user_gender: record.user_gender
+        }
+        delete record.user_id;
+        delete record.user_age;
+        delete record.user_country;
+        delete record.user_gender;
+        record.review_id = parseInt(record.review_id);
+        record.num_helpful_votes = parseInt(record.num_helpful_votes);
+        record.rating = parseFloat(record.rating);
+        record.review_date = new Date(record.review_date);
+        return record;
+    }
+
+    const cleaned = csv.filter(record => !containsNull(record)).map(record => {
+        return cleanRecord(record);
+    });
+    // console.log("cleaned", cleaned);
+    // console.log("cleaned length", cleaned.length);
+    return cleaned;
+}
 
 /**
  * [TODO] Step 3: Sentiment Analysis
