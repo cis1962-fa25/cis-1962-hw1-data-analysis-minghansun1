@@ -1,8 +1,8 @@
 /**
  * [TODO] Step 0: Import the dependencies, fs and papaparse
  */
-const fs = require('fs')
-const Papa = require('papaparse')
+const fs = require('fs');
+const Papa = require('papaparse');
 
 /**
  * [TODO] Step 1: Parse the Data
@@ -13,17 +13,12 @@ const Papa = require('papaparse')
  */
 function parseData(filename) {
     const csv = fs.readFileSync(filename, 'utf8');
-    const { data, errors, meta } = Papa.parse(csv, {
+    const parsed = Papa.parse(csv, {
         header: true,
         skipEmptyLines: true,
         dynamicTyping: true,
     });
-    // console.log('File content:', data);
-    // console.log('File length:', data.length);
-    // console.log("data", data);
-    // console.log("data length", data.length);
-    return data;
-
+    return parsed;
 }
 
 /**
@@ -44,7 +39,10 @@ function parseData(filename) {
 function cleanData(csv) {
     function containsNull(record) {
         for (const key in record) {
-            if (key !== 'user_gender' && (record[key] === null || record[key] === '')) {
+            if (
+                key !== 'user_gender' &&
+                (record[key] === null || record[key] === '')
+            ) {
                 return true;
             }
         }
@@ -56,8 +54,8 @@ function cleanData(csv) {
             user_id: parseInt(record.user_id),
             user_age: parseInt(record.user_age),
             user_country: record.user_country,
-            user_gender: record.user_gender
-        }
+            user_gender: record.user_gender,
+        };
         delete record.user_id;
         delete record.user_age;
         delete record.user_country;
@@ -66,12 +64,14 @@ function cleanData(csv) {
         record.num_helpful_votes = parseInt(record.num_helpful_votes);
         record.rating = parseFloat(record.rating);
         record.review_date = new Date(record.review_date);
+        record.verified_purchase = record.verified_purchase === 'True';
         return record;
     }
-
-    const cleaned = csv.filter(record => !containsNull(record)).map(record => {
-        return cleanRecord(record);
-    });
+    const cleaned = csv.data
+        .filter((record) => !containsNull(record))
+        .map((record) => {
+            return cleanRecord(record);
+        });
     // console.log("cleaned", cleaned);
     // console.log("cleaned length", cleaned.length);
     return cleaned;
@@ -87,7 +87,9 @@ function cleanData(csv) {
  * @returns {string} - 'positive' if rating is greater than 4, negative is rating is below 2,
  *                      and neutral if it is between 2 and 4.
  */
-function labelSentiment({ rating }) {}
+function labelSentiment({ rating }) {
+    return rating > 4 ? 'positive' : rating < 2 ? 'negative' : 'neutral';
+}
 
 /**
  * [TODO] Step 3: Sentiment Analysis by App
@@ -97,7 +99,22 @@ function labelSentiment({ rating }) {}
  * @param {Object} cleaned - the cleaned csv data
  * @returns {{app_name: string, positive: number, neutral: number, negative: number}[]} - An array of objects, each summarizing sentiment counts for an app
  */
-function sentimentAnalysisApp(cleaned) {}
+function sentimentAnalysisApp(cleaned) {
+    const sentimentByApp = new Map();
+    cleaned.forEach((review) => {
+        const sentiment = labelSentiment(review);
+        if (!sentimentByApp.has(review.app_name)) {
+            sentimentByApp.set(review.app_name, {
+                app_name: review.app_name,
+                positive: 0,
+                neutral: 0,
+                negative: 0,
+            });
+        }
+        sentimentByApp.get(review.app_name)[sentiment]++;
+    });
+    return Array.from(sentimentByApp.values());
+}
 
 /**
  * [TODO] Step 3: Sentiment Analysis by Language
@@ -107,7 +124,22 @@ function sentimentAnalysisApp(cleaned) {}
  * @param {Object} cleaned - the cleaned csv data
  * @returns {{lang_name: string, positive: number, neutral: number, negative: number}[]} - An array of objects, each summarizing sentiment counts for a language
  */
-function sentimentAnalysisLang(cleaned) {}
+function sentimentAnalysisLang(cleaned) {
+    const sentimentByLang = new Map();
+    cleaned.forEach((review) => {
+        const sentiment = labelSentiment(review);
+        if (!sentimentByLang.has(review.review_language)) {
+            sentimentByLang.set(review.review_language, {
+                lang_name: review.review_language,
+                positive: 0,
+                neutral: 0,
+                negative: 0,
+            });
+        }
+        sentimentByLang.get(review.review_language)[sentiment]++;
+    });
+    return Array.from(sentimentByLang.values());
+}
 
 /**
  * [TODO] Step 4: Statistical Analysis
@@ -124,7 +156,62 @@ function sentimentAnalysisLang(cleaned) {}
  * @returns {{mostReviewedApp: string, mostReviews: number, mostUsedDevice: String, mostDevices: number, avgRating: float}} -
  *          the object containing the answers to the desired summary statistics, in this specific format.
  */
-function summaryStatistics(cleaned) {}
+function summaryStatistics(cleaned) {
+    const appReviewCounts = new Map();
+    const deviceCounts = new Map();
+    const ratingSums = new Map();
+    const ratingCounts = new Map();
+    cleaned.forEach((review) => {
+        // reviews per app
+        appReviewCounts.set(
+            review.app_name,
+            (appReviewCounts.get(review.app_name) || 0) + 1,
+        );
+        // number of each device type per app
+        const deviceKey = `${review.app_name}||${review.device_type}`;
+        deviceCounts.set(deviceKey, (deviceCounts.get(deviceKey) || 0) + 1);
+        // sum of ratings per app
+        ratingSums.set(
+            review.app_name,
+            (ratingSums.get(review.app_name) || 0) + review.rating,
+        );
+        // count of ratings per app
+        ratingCounts.set(
+            review.app_name,
+            (ratingCounts.get(review.app_name) || 0) + 1,
+        );
+    });
+
+    let mostReviewedApp = '';
+    let mostReviews = 0;
+    appReviewCounts.forEach((count, app) => {
+        if (count > mostReviews) {
+            mostReviews = count;
+            mostReviewedApp = app;
+        }
+    });
+
+    let mostUsedDevice = '';
+    let mostDevices = 0;
+    deviceCounts.forEach((count, deviceKey) => {
+        const [app, device] = deviceKey.split('||');
+        if (app === mostReviewedApp && count > mostDevices) {
+            mostDevices = count;
+            mostUsedDevice = device;
+        }
+    });
+
+    const avgRating =
+        ratingSums.get(mostReviewedApp) / ratingCounts.get(mostReviewedApp);
+
+    return {
+        mostReviewedApp,
+        mostReviews,
+        mostUsedDevice,
+        mostDevices,
+        avgRating: parseFloat(avgRating),
+    };
+}
 
 /**
  * Do NOT modify this section!
@@ -135,5 +222,5 @@ module.exports = {
     sentimentAnalysisApp,
     sentimentAnalysisLang,
     summaryStatistics,
-    labelSentiment
+    labelSentiment,
 };

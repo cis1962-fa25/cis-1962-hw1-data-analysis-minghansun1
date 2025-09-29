@@ -1,5 +1,5 @@
 /**
- * You may use this file to call the functions within your code for testing purposes. 
+ * You may use this file to call the functions within your code for testing purposes.
  * Code written in this file will not be graded or submitted.
  * The steps are labeled for your convenience.
  */
@@ -28,8 +28,15 @@ const cleanedData = cleanData(csv);
  *      Call the printSentimentAnalysis function get a summary
  *      of the sentiments of apps across different apps and languages.
  */
+const sentimentByApp = sentimentAnalysisApp(cleanedData);
+const sentimentByLang = sentimentAnalysisLang(cleanedData);
+// console.log('Sentiment by App:', sentimentByApp);
+// console.log('Sentiment by Language:', sentimentByLang);
 
 /**
  * Step 4: Statistical Analysis
  *      Call the printAnalysis function to get some summary statistics of the cleaned data.
  */
+
+const stats = summaryStatistics(cleanedData);
+// console.log('Summary Statistics:', stats);
